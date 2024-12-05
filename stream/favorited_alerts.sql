@@ -4,6 +4,8 @@ CREATE OR REPLACE TABLE favorited_alerts_staging (
     raw variant
 );
 
+CREATE OR REPLACE TABLE favorited_alerts_index (subjectId VARCHAR(36));
+
 INSERT INTO favorited_alerts_staging (raw) SELECT parse_json($${
    "subjectId": "4839b762-241d-40cb-97a3-f6f78e01fd78",                        
    "neighborhoodIds": [1, 2, 3], 
@@ -82,3 +84,12 @@ CREATE OR REPLACE STAGE s3_favorited_alerts_stage_no_compression
     FILE_FORMAT = unload_json_format_no_compression;
 
 COPY INTO @s3_favorited_alerts_stage_no_compression/d1 FROM favorited_alerts_staging;
+
+DECLARE
+  numSubjectIds INT;
+BEGIN
+  numSubjectIds := 1000000;
+  FOR idx IN 1 TO numSubjectIds DO
+    INSERT INTO favorited_alerts_index(subjectId) SELECT UUID_STRING();
+  END FOR;
+END;

@@ -61,3 +61,55 @@ SELECT SYSTEM$ENABLE_BEHAVIOR_CHANGE_BUNDLE('2024_08');
 COPY INTO <table>
   FROM @~/<file>.json
   FILE_FORMAT = (TYPE = 'JSON' STRIP_OUTER_ARRAY = true);
+
+{
+  "ID": 1,
+  "CustomerDetails": {
+    "RegistrationDate": 158415500,
+    "FirstName": "John",
+    "LastName": "Doe",
+    "Events": [
+      {
+        "Type": "LOGIN",
+        "Time": 1584158401,
+        "EventID": "NZ0000000001"
+      },
+      /* ... */
+      /* this array contains thousands of elements */
+      /* with total size exceeding 16 MB */
+      /* ... */
+      {
+        "Type": "LOGOUT",
+        "Time": 1584158402,
+        "EventID": "NZ0000000002"
+      }
+    ]
+  }
+}
+
+CREATE OR REPLACE TABLE mytable AS
+  SELECT
+    t1.$1:ID AS id,
+    t1.$1:CustomerDetails:RegistrationDate::VARCHAR AS RegistrationDate,
+    t1.$1:CustomerDetails:FirstName::VARCHAR AS First_Name,
+    t1.$1:CustomerDetails:LastName::VARCHAR AS as Last_Name,
+    t2.value AS Event
+  FROM @json t1,
+    TABLE(FLATTEN(INPUT => $1:CustomerDetails:Events)) t2;
+
+CREATE OR REPLACE TABLE mytable (
+  id VARCHAR,
+  registration_date VARCHAR(16777216),
+  first_name VARCHAR(16777216),
+  last_name VARCHAR(16777216),
+  event VARCHAR(16777216));
+
+INSERT INTO mytable
+  SELECT
+    t1.$1:ID,
+    t1.$1:CustomerDetails:RegistrationDate::VARCHAR,
+    t1.$1:CustomerDetails:FirstName::VARCHAR,
+    t1.$1:CustomerDetails:LastName::VARCHAR,
+    t2.value
+  FROM @json t1,
+    TABLE(FLATTEN(INPUT => $1:CustomerDetails:Events)) t2;

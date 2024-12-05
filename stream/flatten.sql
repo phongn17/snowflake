@@ -40,8 +40,7 @@ create or replace transient table emp02(
     id number,
     first_name varchar,
     last_name varchar,
-    designation varchar,
-    certifications object
+    designation varchar,certifications object
 );
 
 -- 1st records with one certification
@@ -505,3 +504,44 @@ lateral flatten (
         mode => 'Object',
         outer => false
             ) cert;
+
+CREATE DATABASE hcm;
+
+USE DATABASE hcm;
+
+CREATE TABLE departments (department_id INTEGER, name VARCHAR);
+CREATE TABLE employees (employee_ID INTEGER, last_name VARCHAR, department_ID INTEGER, project_names ARRAY);
+INSERT INTO departments (department_ID, name) VALUES 
+    (1, 'Engineering'), 
+    (2, 'Support');
+INSERT INTO employees (employee_ID, last_name, department_ID) VALUES 
+    (101, 'Richards', 1),
+    (102, 'Paulson',  1),
+    (103, 'Johnson',  2);
+
+SELECT * FROM departments;
+SELECT * FROM employees;
+
+SELECT * 
+    FROM departments AS d, LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID;
+
+SELECT * FROM departments AS d
+    JOIN employees AS e ON e.department_id = d.department_id;
+
+UPDATE employees SET project_names = ARRAY_CONSTRUCT('Materialized Views', 'UDFs') 
+    WHERE employee_ID = 101;
+UPDATE employees SET project_names = ARRAY_CONSTRUCT('Materialized Views', 'Lateral Joins')
+    WHERE employee_ID = 102;
+
+SELECT emp.employee_ID, emp.last_name, index, value AS project_name
+    FROM employees AS emp, LATERAL FLATTEN(INPUT => emp.project_names) AS proj_names
+    ORDER BY employee_ID;
+
+SELECT * 
+    FROM departments AS d, LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID;
+
+SELECT * 
+    FROM departments AS d INNER JOIN LATERAL (SELECT * FROM employees AS e WHERE e.department_ID = d.department_ID) AS iv2
+    ORDER BY employee_ID;
